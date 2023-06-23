@@ -15,13 +15,10 @@ import (
 func main() {
 	setLogger()
 
-	// handle our core application
 	http.HandleFunc("/validate-pods", ServeValidatePods)
 	http.HandleFunc("/mutate-pods", ServeMutatePods)
 	http.HandleFunc("/health", ServeHealth)
 
-	// start the server
-	// listens to clear text http on port 8080 unless TLS env var is set to "true"
 	if os.Getenv("TLS") == "true" {
 		cert := "/etc/admission-webhook/tls/tls.crt"
 		key := "/etc/admission-webhook/tls/tls.key"
@@ -33,19 +30,16 @@ func main() {
 	}
 }
 
-// ServeHealth returns 200 when things are good
 func ServeHealth(w http.ResponseWriter, r *http.Request) {
 	logrus.WithField("uri", r.RequestURI).Debug("healthy")
 	fmt.Fprint(w, "OK")
 }
 
-// ServeValidatePods validates an admission request and then writes an admission
-// review to `w`
 func ServeValidatePods(w http.ResponseWriter, r *http.Request) {
 	logger := logrus.WithField("uri", r.RequestURI)
 	logger.Debug("received validation request")
 
-	in, err := parseRequest(*r)
+	in, err := parseRequest(r)
 	if err != nil {
 		logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -79,13 +73,11 @@ func ServeValidatePods(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", jout)
 }
 
-// ServeMutatePods returns an admission review with pod mutations as a json patch
-// in the review response
 func ServeMutatePods(w http.ResponseWriter, r *http.Request) {
 	logger := logrus.WithField("uri", r.RequestURI)
 	logger.Debug("received mutation request")
 
-	in, err := parseRequest(*r)
+	in, err := parseRequest(r)
 	if err != nil {
 		logger.Error(err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -119,8 +111,6 @@ func ServeMutatePods(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", jout)
 }
 
-// setLogger sets the logger using env vars, it defaults to text logs on
-// debug level unless otherwise specified
 func setLogger() {
 	logrus.SetLevel(logrus.DebugLevel)
 
@@ -138,8 +128,7 @@ func setLogger() {
 	}
 }
 
-// parseRequest extracts an AdmissionReview from an http.Request if possible
-func parseRequest(r http.Request) (*admissionv1.AdmissionReview, error) {
+func parseRequest(r *http.Request) (*admissionv1.AdmissionReview, error) {
 	if r.Header.Get("Content-Type") != "application/json" {
 		return nil, fmt.Errorf("Content-Type: %q should be %q",
 			r.Header.Get("Content-Type"), "application/json")

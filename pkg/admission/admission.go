@@ -42,7 +42,7 @@ func (a Admitter) MutatePodReview() (*admissionv1.AdmissionReview, error) {
 	return patchReviewResponse(a.Request.UID, patch)
 }
 
-// MutatePodReview takes an admission request and validates the pod within
+// ValidatePodReview takes an admission request and validates the pod within
 // it returns an admission review
 func (a Admitter) ValidatePodReview() (*admissionv1.AdmissionReview, error) {
 	pod, err := a.Pod()
@@ -79,9 +79,8 @@ func (a Admitter) Pod() (*corev1.Pod, error) {
 	return &p, nil
 }
 
-// reviewResponse TODO: godoc
-func reviewResponse(uid types.UID, allowed bool, httpCode int32,
-	reason string) *admissionv1.AdmissionReview {
+// reviewResponse generates an admission review response
+func reviewResponse(uid types.UID, allowed bool, httpCode int32, reason string) *admissionv1.AdmissionReview {
 	return &admissionv1.AdmissionReview{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "AdmissionReview",
@@ -98,7 +97,7 @@ func reviewResponse(uid types.UID, allowed bool, httpCode int32,
 	}
 }
 
-// patchReviewResponse builds an admission review with given json patch
+// patchReviewResponse builds an admission review with the given json patch
 func patchReviewResponse(uid types.UID, patch []byte) (*admissionv1.AdmissionReview, error) {
 	patchType := admissionv1.PatchTypeJSONPatch
 

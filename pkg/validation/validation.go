@@ -1,6 +1,8 @@
 package validation
 
 import (
+	"fmt"
+
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -10,12 +12,12 @@ type Validator struct {
 	Logger *logrus.Entry
 }
 
-// NewValidator returns an initialised instance of Validator
+// NewValidator returns an initialized instance of Validator
 func NewValidator(logger *logrus.Entry) *Validator {
 	return &Validator{Logger: logger}
 }
 
-// podValidators is an interface used to group functions mutating pods
+// podValidators is an interface used to group functions validating pods
 type podValidator interface {
 	Validate(*corev1.Pod) (validation, error)
 	Name() string
@@ -36,12 +38,12 @@ func (v *Validator) ValidatePod(pod *corev1.Pod) (validation, error) {
 			podName = pod.ObjectMeta.GenerateName
 		}
 	}
-	log := logrus.WithField("pod_name", podName)
+	log := v.Logger.WithField("pod_name", podName)
 	log.Print("delete me")
 
 	// list of all validations to be applied to the pod
 	validations := []podValidator{
-		nameValidator{v.Logger},
+		labelValidator{Logger: log},
 	}
 
 	// apply all validations
@@ -58,3 +60,36 @@ func (v *Validator) ValidatePod(pod *corev1.Pod) (validation, error) {
 
 	return validation{Valid: true, Reason: "valid pod"}, nil
 }
+
+// labelValidator validates the labels of a pod
+type labelValidator struct {
+	Logger *logrus.Entry
+}
+
+// Validate checks if the labels of the pod are valid
+func (lv labelValidator) Validate(pod *corev1.Pod) (validation, error) {
+	if pod.Labels == nil {
+		return validation{Valid: false, Reason: "labels are missing"}, nil
+	}
+
+	// Check for required labels
+	requiredLabels := []string{
+		"tags.datadoghq.com/env",
+		"tags.datadoghq.com/service",
+		"tags.datadoghq.com/version",
+	}
+
+	for _, label := range requiredLabels {
+		if _, ok := pod.Labels[label]; !ok {
+			return validation{Valid: false, Reason: fmt.Sprintf("missing required label: %s", label)}, nil
+		}
+	}
+
+	return validation{Valid: true, Reason: "labels are valid"}, nil
+}
+
+// Name returns the name of the validator
+func (lv labelValidator) Name() string {
+	return "labelValidator"
+}
+
